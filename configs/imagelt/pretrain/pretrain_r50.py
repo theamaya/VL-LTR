@@ -1,7 +1,8 @@
 # 8 GPU
 cfg = dict(
     model='CVLP_r50',
-    desc_path='data/imagenet',
+    # desc_path='data/imagenet',
+    desc_path='/l/users/amaya.dharmasiri/data/imagenet',
     pretrained_clip='pretrained/RN50.pt',
     context_length=75,
     pretrain_cvlp=True,

@@ -1,0 +1,16 @@
++ export NCCL_LL_THRESHOLD=0
++ NCCL_LL_THRESHOLD=0
++ export MKL_SERVICE_FORCE_INTEL=1
++ MKL_SERVICE_FORCE_INTEL=1
++ CONFIG=/home/amaya.dharmasiri/LongTail/VL-LTR/configs/inat/pretrain/inat_pretrain_r50.py
++ GPUS=8
++ CPUS=32
++ PORT=8666
++ '[' 8 -lt 8 ']'
++ GPUS_PER_NODE=8
++ CONFIG_NAME=inat_pretrain_r50.py
++ CONFIG_NAME=inat_pretrain_r50
++ OUTPUT_DIR=./checkpoints/inat_pretrain_r50
++ '[' '!' -d ./checkpoints/inat_pretrain_r50 ']'
++ python -m torch.distributed.launch --nproc_per_node=8 main.py --port=8666 --num_workers 4 --config /home/amaya.dharmasiri/LongTail/VL-LTR/configs/inat/pretrain/inat_pretrain_r50.py
++ tee -a ./checkpoints/inat_pretrain_r50/train.log

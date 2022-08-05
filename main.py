@@ -175,7 +175,10 @@ def get_args_parser():
     parser.set_defaults(use_sqrt_freq=False)
 
     # Dataset parameters
-    parser.add_argument('--data-path', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--nb_classes', default=1000, type=int,
+                        help='number of classes') #added by amaya
+
+    parser.add_argument('--data-path', default='/l/users/amaya.dharmasiri/data/imagenet', type=str,
                         help='dataset path')
     parser.add_argument('--data-set', default='IMNET', choices=['PLACES_LT', 'CIFAR', 'IMNET', 
                                                                 'IMNET_LT', 'INAT', 'INAT19'],
@@ -352,7 +355,6 @@ def main(args):
     lr_scheduler, _ = create_scheduler(args, optimizer)
 
     criterion = LabelSmoothingCrossEntropy()
-
     assert args.loss_type in ["softCE", "smoothCE", "BCE", "CE"]
     if args.mixup > 0. or args.loss_type == "softCE":
         # smoothing is handled with mixup label transform
@@ -366,6 +368,7 @@ def main(args):
         assert args.loss_type == "CE"
         criterion = torch.nn.CrossEntropyLoss()
     print("using loss: ", str(criterion))
+
     if args.pretrain_cvlp:
         criterion = PretrainSentLoss(
             criterion, loss_type=args.loss_type, args=args,
@@ -437,7 +440,7 @@ def main(args):
         else:
             eval_func = partial(evaluate_LT, args=args,
                                 tokens=None, labels=dataset_train.targets)
-        test_stats = eval_func(data_loader, model, device, prefix=prefix)
+        test_stats = eval_func(data_loader, model, device, prefix=prefix)  #runs the evaluation
         log_stats = {f'{prefix}_{k}': v for k, v in test_stats.items()}
         if args.output_dir and utils.is_main_process():
             with (output_dir / "log.txt").open("a") as f:

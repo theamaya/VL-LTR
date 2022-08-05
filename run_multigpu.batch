@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --job-name=VL-LTR
+#SBATCH -N1
+#SBATCH -n1
+#SBATCH --mem=40G
+#SBATCH -p gpu
+#SBATCH -q gpu-8
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:4
+#SBATCH --error=./slurm_err_multig/%J.err
+#SBATCH --output=./slurm_out_multig/%J.out
+
+ulimit -S -u 5000
+
+$1

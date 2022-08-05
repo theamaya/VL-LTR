@@ -45,19 +45,19 @@ class ClassificationDataset(Dataset):
         assert dataset in ['PLACES_LT', "IMNET", "IMNET_LT", "INAT"]
         self.nb_classes = nb_classes
         if dataset == 'IMNET':
-            self.data_source = ImageNet(root='data/imagenet/%s' % split,
-                                        list_file='data/imagenet/meta/%s.txt' % split,
+            self.data_source = ImageNet(root='/l/users/amaya.dharmasiri/data/imagenet/%s' % split,
+                                        list_file='/l/users/amaya.dharmasiri/data/imagenet/meta/%s.txt' % split,
                                         select=select)
         elif dataset == 'IMNET_LT':
-            self.data_source = ImageNet(root='data/imagenet',
-                                        list_file='data/imagenet/ImageNet_LT_%s.txt' % split)
+            self.data_source = ImageNet(root='/l/users/amaya.dharmasiri/data/imagenet',
+                                        list_file='/l/users/amaya.dharmasiri/data/imagenet/ImageNet_LT_%s.txt' % split)
         elif dataset == 'INAT':
-            self.data_source = iNat(root='data/iNat/',
+            self.data_source = iNat(root='/l/users/amaya.dharmasiri/data/iNat/',
                                     json_file='%s2018.json' % split,
                                     select=select)
         elif dataset == 'PLACES_LT':
-            self.data_source = ImageList(root='data/places',
-                                        list_file='data/places/Places_LT_%s.txt' % split,
+            self.data_source = ImageList(root='/l/users/amaya.dharmasiri/data/places',
+                                        list_file='/l/users/amaya.dharmasiri/data/places/Places_LT_%s.txt' % split,
                                         select=select)
         
         self.text_tokens = get_sentence_tokens(dataset, desc_path, context_length)

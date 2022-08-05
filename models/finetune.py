@@ -307,6 +307,7 @@ class LGR(nn.Module):
         elif self.select_sent is not None:
             print('using selected sents')
             txt_ces_path = txt_embed_path.replace('txt_embed.npy', '%s_txt_ce.npy' % self.select_sent)
+            print('The txt_ces_path ', txt_ces_path)
             assert osp.exists(txt_ces_path)
             text_ces = torch.from_numpy(np.load(txt_ces_path))  # [Nt, embed_dim]
             split_text_ces = torch.split(text_ces, self.sent_idxs)

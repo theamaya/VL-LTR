@@ -1,0 +1,15 @@
+#!/bin/sh
+#SBATCH --job-name=VL-LTR
+#SBATCH -N1
+#SBATCH -n1
+#SBATCH --mem=40G
+#SBATCH --error=./slurm_err/%J.err
+#SBATCH --output=./slurm_out/%J.out
+#SBATCH -q gpu-single
+#SBATCH --partition=gpu
+#SBATCH --time=12:00:00
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:1
+
+$1
+

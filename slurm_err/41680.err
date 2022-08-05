@@ -1,0 +1,12 @@
++ export NCCL_LL_THRESHOLD=0
++ NCCL_LL_THRESHOLD=0
++ CONFIG=/home/amaya.dharmasiri/LongTail/VL-LTR/configs/imagelt/pretrain/pretrain_r50.py
++ GPUS=1
++ CPUS=4
++ PORT=8886
++ CONFIG_NAME=pretrain_r50.py
++ CONFIG_NAME=pretrain_r50
++ OUTPUT_DIR=./checkpoints/eval
++ '[' '!' -d ./checkpoints/eval ']'
++ python -u main.py --port=8886 --num_workers 4 --resume ./checkpoints/pretrain_r50/checkpoint.pth --output-dir ./checkpoints/eval --config /home/amaya.dharmasiri/LongTail/VL-LTR/configs/imagelt/pretrain/pretrain_r50.py --eval-pretrain --eval
++ tee -a ./checkpoints/eval/train.log

@@ -383,6 +383,7 @@ def evaluate_pretrain(data_loader: DataLoader, model, device, labels=None, args=
 
     # image
     if image_embeddings is None:
+        print("No cached image embeddings. Calculating from scratch")
         image_embeddings = []
         iter = tqdm(data_loader, desc="image embeddings") if load_cache else data_loader
         for images, target in iter:
@@ -392,7 +393,9 @@ def evaluate_pretrain(data_loader: DataLoader, model, device, labels=None, args=
                 image_features = model.encode_image(images)
             image_embeddings.append(image_features.detach())
         image_embeddings = torch.cat(image_embeddings)
-        if utils.is_main_process(): np.save(img_embed_path, image_embeddings.cpu().numpy())
+        if utils.is_main_process(): 
+            np.save(img_embed_path, image_embeddings.cpu().numpy())
+            print("Image embeddings saved")
     # print("image_embeddings.shape: ", image_embeddings.shape) # [Ni, 1024]
 
     # text
@@ -551,8 +554,9 @@ def select_sent(data_loader: DataLoader, model, device, args=None, load_cache=Tr
                 text_features = model.encode_text(batch_tokens)
             text_embeddings.append(text_features.detach())
         text_embeddings = torch.cat(text_embeddings)
-        if utils.is_main_process(): np.save(txt_embed_path, text_embeddings.cpu().numpy())
-    # print("text_embeddings.shape: ", text_embeddings.shape) # [Nt, 1024]
+        if utils.is_main_process(): 
+            np.save(txt_embed_path, text_embeddings.cpu().numpy())
+            print("text_embeddings.shape: ", text_embeddings.shape) # [Nt, 1024]
 
     # step 2. compute cosine similarity for image and text
     text_embeddings /= text_embeddings.norm(dim=-1, keepdim=True)
@@ -571,5 +575,7 @@ def select_sent(data_loader: DataLoader, model, device, args=None, load_cache=Tr
     text_ces = torch.tensor(text_ces).to(device)
 
     txt_ce_path = osp.join(cache_dir, "%s_txt_ce.npy" % prefix)
-    if utils.is_main_process(): np.save(txt_ce_path, text_ces.cpu().numpy())
+    if utils.is_main_process(): 
+        np.save(txt_ce_path, text_ces.cpu().numpy())
+        print('Selected anchor embeddings are saved in ', txt_ce_path)
     exit(0)

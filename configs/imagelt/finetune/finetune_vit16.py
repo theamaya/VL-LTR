@@ -1,7 +1,8 @@
 # 8 GPU
 cfg = dict(
     model='LGR_vit16',
-    desc_path='data/imagenet',
+    # desc_path='data/imagenet',
+    desc_path='/l/users/amaya.dharmasiri/data/imagenet',
     pretrained_clip='pretrained/ViT-B-16.pt',
     context_length=75,
     pretrain_cvlp=False,

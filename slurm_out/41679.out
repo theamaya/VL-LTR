@@ -1,0 +1,22 @@
+Not using distributed mode
+Namespace(fp32_resume=False, batch_size=256, epochs=50, config='/home/amaya.dharmasiri/LongTail/VL-LTR/configs/imagelt/pretrain/pretrain_r50.py', pretrained_clip='pretrained/RN50.pt', txt_embed_path=None, vis_backbone_path=None, two_branch=False, debug=False, desc_path='/l/users/amaya.dharmasiri/data/imagenet', context_length=75, sent_length=64, cls_token_length=1, loss_type='smoothCE', pretrain_cvlp=True, pretrain_cvlp_path='', model='CVLP_r50', input_size=224, drop=0.0, drop_path=0.1, img_grad=True, train_mode=False, opt='adamw', opt_eps=1e-08, opt_betas=None, clip_grad=None, momentum=0.9, weight_decay=0.05, sched='cosine', lr=5e-05, lr_noise=None, lr_noise_pct=0.67, lr_noise_std=1.0, warmup_lr=1e-06, min_lr=0.0, text_lr=0, decay_epochs=30, warmup_epochs=5, cooldown_epochs=10, patience_epochs=10, decay_rate=0.1, color_jitter=0.4, aa='rand-m9-mstd0.5-inc1', smoothing=0.1, train_interpolation='bicubic', repeated_aug=False, clip_ms=True, reprob=0.25, remode='pixel', recount=1, resplit=False, mixup=0.0, cutmix=0.0, cutmix_minmax=None, mixup_prob=1.0, mixup_switch_prob=0.5, mixup_mode='batch', teacher_model=None, teacher_path=None, distillation_type='logits', distillation_alpha=0, distillation_beta=0.5, distillation_tau=1.0, distillation_training_mode=False, finetune='', pretrained=False, weight_sample=True, use_sqrt_freq=True, nb_classes=1000, data_path='/l/users/amaya.dharmasiri/data/imagenet', data_set='IMNET_LT', inat_category='name', output_dir='./checkpoints/eval', device='cuda', seed=0, resume='./checkpoints/pretrain_r50/checkpoint.pth', start_epoch=0, eval=True, test=True, test_p=False, select=False, eval_pretrain=True, ensemble=False, dist_eval=False, num_workers=4, pin_mem=True, drop_last=True, world_size=1, dist_url='env://', port=8886, local_rank=0, distributed=False)
+using clip text tokens splitted by sentence
+using clip text tokens splitted by sentence
+using clip text tokens splitted by sentence
+Creating model: CVLP_r50
+loaded pretrained clip.
+<All keys matched successfully>
+number of params: 102007137
+using loss:  LabelSmoothingCrossEntropy()
+loaded pretrained clip.
+<All keys matched successfully>
+using loss:  <class 'losses.PretrainSentLoss'>
+<All keys matched successfully>
+eval dataset: test
+using cached image embeddings
+using cached text embeddings
+preds of image embeddings:   0%|          | 0/25 [00:00<?, ?it/s]preds of image embeddings:   4%|▍         | 1/25 [00:03<01:12,  3.03s/it]preds of image embeddings: 100%|██████████| 25/25 [00:03<00:00,  7.88it/s]
+pred_image.shape: torch.Size([50000, 5])
+preds of text embeddings:   0%|          | 0/102 [00:00<?, ?it/s]preds of text embeddings:   1%|          | 1/102 [00:00<00:18,  5.50it/s]preds of text embeddings:  32%|███▏      | 33/102 [00:00<00:00, 142.02it/s]preds of text embeddings:  66%|██████▌   | 67/102 [00:00<00:00, 211.05it/s]preds of text embeddings: 100%|██████████| 102/102 [00:00<00:00, 180.35it/s]
+pred_text.shape: torch.Size([207221])
+* image_Acc@1: 54.332% text_Acc@1 54.550% knn_Acc@5 59.150% Total time: 0:00:06

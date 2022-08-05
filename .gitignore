@@ -7,3 +7,6 @@ cached/*
 checkpoints/*
 data/*
 pretrained/*
+downloaded_checkpoints/*
+runs/*
+
