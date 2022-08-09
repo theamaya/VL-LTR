@@ -26,4 +26,5 @@ python -m torch.distributed.launch --nproc_per_node=$GPUS main.py \
     --port=$PORT \
     --num_workers 4 \
     --config $CONFIG ${@:3} \
+    --resume "./checkpoints/${CONFIG_NAME}/checkpoint.pth" \
     2>&1 | tee -a ${OUTPUT_DIR}/train.log
