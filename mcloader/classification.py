@@ -55,6 +55,9 @@ class ClassificationDataset(Dataset):
             self.data_source = iNat(root='/l/users/amaya.dharmasiri/data/iNat/',
                                     json_file='%s2018.json' % split,
                                     select=select)
+            # self.data_source = ImageList(root='/l/users/amaya.dharmasiri/data/iNat/',
+            #                             list_file='/l/users/amaya.dharmasiri/data/iNat/inat2018_%s.txt' % split,
+            #                             select=select)
         elif dataset == 'PLACES_LT':
             self.data_source = ImageList(root='/l/users/amaya.dharmasiri/data/places',
                                         list_file='/l/users/amaya.dharmasiri/data/places/Places_LT_%s.txt' % split,
