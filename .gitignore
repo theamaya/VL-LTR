@@ -9,4 +9,13 @@ data/*
 pretrained/*
 downloaded_checkpoints/*
 runs/*
-
+run_single.batch
+run_multigpu.batch
+run_multinode.batch
+configs/*
+slurm_out/*
+slurm_out_multig/*
+slurm_out_multin/*
+slurm_err/*
+slurm_err_multig/*
+slurm_err_multin/*

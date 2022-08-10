@@ -368,6 +368,38 @@ class LGR(nn.Module):
             x = self.fc(x)
         return x
 
+@register_model
+def LGR_r50_notext(pretrained=False, **kwargs):
+    args = kwargs['args']
+    dataset = kwargs['dataset']
+    sent_idxs = getattr(dataset, 'end_idxs', None)
+
+    model = LGR(
+        num_classes=args.nb_classes,
+        embed_dim=1024,
+        image_resolution=224,
+        vision_layers=(3, 4, 6, 3),
+        vision_width=64,
+        vision_patch_size=None,
+        sent_length=args.sent_length,
+        attn_heads=1,
+        sent_idxs=sent_idxs,
+        use_norm=True,
+        img_grad=False,
+        select_sent='val',
+        op_type=None
+    )
+
+    vis_backbone_path = osp.join(args.pretrain_cvlp_path, "checkpoint.pth")
+    if not osp.exists(vis_backbone_path):
+        print("no ckpt file found")
+        vis_backbone_path = args.pretrained_clip
+    model.load_pretrained_model(
+        txt_embed_path=osp.join(args.pretrain_cvlp_path, "txt_embed.npy"),
+        vis_backbone_path=vis_backbone_path, img_grad=False
+    )
+
+    return model
 
 @register_model
 def LGR_r50(pretrained=False, **kwargs):

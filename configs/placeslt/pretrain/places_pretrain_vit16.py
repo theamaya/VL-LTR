@@ -1,7 +1,7 @@
 # 8 GPU
 cfg = dict(
     model='CVLP_vit16',
-    desc_path='/l/users/amaya.dharmasiri/data/places',
+    desc_path='data/places',
     pretrained_clip='pretrained/ViT-B-16.pt',
     context_length=75,
     pretrain_cvlp=True,
