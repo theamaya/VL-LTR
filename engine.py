@@ -9,7 +9,7 @@ from tqdm import tqdm
 import time
 import datetime
 from collections import Counter
-
+import wandb
 import torch
 import torch.distributed as dist
 from torch.utils.data.dataloader import DataLoader
@@ -86,11 +86,28 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
                 metric_logger.update(loss0=loss0)
                 metric_logger.update(loss1=loss1)
                 metric_logger.update(loss=loss)
+
+                log_stats={
+                    "loss0": loss0,
+                    "loss1": loss1,
+                    "loss": loss
+                }
+
             elif pretrain_cvlp:
                 loss, distill_loss = criterion(samples, outputs, targets)
                 metric_logger.update(distill_loss=distill_loss)
+
+                log_stats={
+                    "distill_loss": distill_loss,
+                    "loss": loss
+                }
+
             else:
                 loss = criterion(samples, outputs, targets)
+
+                log_stats={
+                    "loss": loss
+                }
 
         loss_value = loss.item()
 
@@ -119,9 +136,12 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
             metric_logger.meters['text_acc1'].update(text_acc1.item(), n=batch_size)
         metric_logger.update(loss=loss_value)
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)
+    if utils.is_main_process():
+        wandb.log(log_stats)  #get all the values from the metric logger to wandb
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
@@ -400,6 +420,7 @@ def evaluate_pretrain(data_loader: DataLoader, model, device, labels=None, args=
 
     # text
     if text_embeddings is None:
+        print("No cached text embeddings. Calculating from scratch")
         text_embeddings = []
         tokens_loader_val = DataLoader(
             text_tokens, sampler=SequentialSampler(text_tokens),
@@ -579,3 +600,4 @@ def select_sent(data_loader: DataLoader, model, device, args=None, load_cache=Tr
         np.save(txt_ce_path, text_ces.cpu().numpy())
         print('Selected anchor embeddings are saved in ', txt_ce_path)
     exit(0)
+

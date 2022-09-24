@@ -293,6 +293,9 @@ class LGR(nn.Module):
 
     def _load_text_embeddings(self, txt_embed_path):
         assert self.text_embeddings is not None
+        print('current text embeddings = ', self.text_embeddings)
+        print('looking for anchor text embeddings in ', txt_embed_path)
+        ## please uncomment this part later (commented because we only need the selected anchor sentences for LGR training)
         if not osp.exists(txt_embed_path):
             print("warning: no txt embeddings found, please generate the txt embeddings first in the pretraining stage")
             return
@@ -307,6 +310,7 @@ class LGR(nn.Module):
         elif self.select_sent is not None:
             print('using selected sents')
             txt_ces_path = txt_embed_path.replace('txt_embed.npy', '%s_txt_ce.npy' % self.select_sent)
+            # txt_ces_path = txt_embed_path
             print('The txt_ces_path ', txt_ces_path)
             assert osp.exists(txt_ces_path)
             text_ces = torch.from_numpy(np.load(txt_ces_path))  # [Nt, embed_dim]
@@ -319,6 +323,7 @@ class LGR(nn.Module):
         split_text_embeddings = pad_sequence(split_text_embeddings, batch_first=True)
         self.text_embeddings.data = split_text_embeddings
         print("text embeddings loaded")
+        
 
 
     def _load_vis_backbone(self, vis_backbone_path):
@@ -430,6 +435,10 @@ def LGR_r50(pretrained=False, **kwargs):
         txt_embed_path=osp.join(args.pretrain_cvlp_path, "txt_embed.npy"),
         vis_backbone_path=vis_backbone_path, img_grad=False
     )
+    # model.load_pretrained_model(
+    #     txt_embed_path=osp.join(args.pretrain_cvlp_path, "val_txt_ce.npy"),
+    #     vis_backbone_path=vis_backbone_path, img_grad=False
+    # )
 
     return model
 

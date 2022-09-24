@@ -15,12 +15,13 @@ class iNat(ImageList):
         count = {}
         for img, ann in zip(images, annotations):
             category_id = ann['category_id']
-            if select:  #picks 50 images from each class to make a pseudo validation set out of the train set
-                if category_id not in count:
-                    count[category_id] = 0
-                count[category_id] += 1
-                if count[category_id] > 50:
-                    continue
+            # if select:  
+            #     if category_id not in count:
+            #         count[category_id] = 0
+            #     count[category_id] += 1
+            #     if count[category_id] > 50:
+            #         continue
             img_list.append((img['file_name'], category_id))
 
         super(iNat, self).__init__(root, img_list)
+

@@ -6,6 +6,7 @@ import time
 import torch
 import torch.backends.cudnn as cudnn
 import json
+import wandb
 
 from pathlib import Path
 
@@ -28,6 +29,7 @@ import os.path as osp
 import warnings
 
 warnings.filterwarnings('ignore')
+
 
 
 def get_args_parser():
@@ -227,6 +229,22 @@ def get_args_parser():
                              "be used for communication during distributed "
                              "training")
     parser.add_argument("--local_rank", default=0, type=int)
+
+    # text prompt parameters for dataset creation
+    parser.add_argument('--include_wiki', action='store_true', default=True,
+                        help='use the text descriptions crawled from wikipedia')
+    parser.set_defaults(include_wiki=True)
+    parser.add_argument('--prompts', default='all',
+                        help='use the prompt templates 80')
+
+
+    parser.add_argument(
+        "--run", 
+        type=str,
+        default= None,
+        help="directory for the experiment",
+    )
+
     return parser
 
 
@@ -242,6 +260,12 @@ def main(args):
     torch.manual_seed(seed)
     np.random.seed(seed)
     # random.seed(seed)
+
+    if utils.is_main_process():
+        ##############
+        wandb.init(project="Long-Tail visual recognition", entity="theamaya", config={}, name= args.run)
+        wandb.config.update(args)
+        ###################
 
     cudnn.benchmark = True
 
@@ -340,6 +364,8 @@ def main(args):
     )
 
     model.to(device)
+
+    # wandb.watch(model)
 
     model_ema = None
 
@@ -525,4 +551,5 @@ if __name__ == '__main__':
     args = utils.update_from_config(args)
     if args.output_dir:
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+
     main(args)

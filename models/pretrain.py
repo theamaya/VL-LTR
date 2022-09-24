@@ -298,6 +298,9 @@ class CVLP(nn.Module):
 
         self.initialize_parameters(args.pretrained_clip)
 
+        self.coopctx= torch.load('/nfs/users/ext_amaya.dharmasiri/repos/CoOp/nctx8_cscFalse_ctpend_completeimagenetLT_ep10_.pt')
+        # self.coopctx= torch.load('/nfs/users/ext_amaya.dharmasiri/repos/CoOp/nctx8_cscFalse_ctpend_completeimagenetLT_wikipromptcvlp_ep10_.pt')
+
     def initialize_parameters(self, pretrained_clip):
         nn.init.normal_(self.token_embedding.weight, std=0.02)
         nn.init.normal_(self.positional_embedding, std=0.01)
@@ -328,7 +331,10 @@ class CVLP(nn.Module):
             nn.init.normal_(self.text_projection, std=self.transformer.width ** -0.5)
 
         if pretrained_clip is not None:
-            pretrained_state_dict = torch.jit.load(pretrained_clip, map_location=torch.device('cpu')).state_dict()
+            try:
+                pretrained_state_dict = torch.jit.load(pretrained_clip, map_location=torch.device('cpu')).state_dict()
+            except:
+                pretrained_state_dict = torch.load(pretrained_clip, map_location="cpu")
             for key in ["input_resolution", "context_length", "vocab_size"]:
                 if key in pretrained_state_dict:
                     del pretrained_state_dict[key]
@@ -361,6 +367,46 @@ class CVLP(nn.Module):
 
     def encode_text(self, text) -> torch.Tensor:
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
+
+        #### put the token embeddings from coop prompts here
+        # whats the size of x? text?
+        # if the text tokens have 49406 at [1], replace [1:8] with the coop prompt embedding
+
+        # torch.save(x, '/nfs/users/ext_amaya.dharmasiri/repos/VL-LTR/x.pt')
+        # torch.save(text, '/nfs/users/ext_amaya.dharmasiri/repos/VL-LTR/text.pt')
+        # print('x.shape' ,x.shape)
+        # print('text.shape', text.shape)
+        # print('x', x)
+        # print('text', text[0])
+
+        # x.requires_grad= False
+        # indices= torch.where(text[:,1]==49406)
+
+        # selected_samples = x[indices]
+        # permuted = selected_samples.permute(1,0,2)
+        # coopctx = self.coopctx.unsqueeze(1)
+        # coopctx = coopctx.repeat(1, len(indices), 1)
+        # permuted[1:9] = coopctx
+        # get_back = permuted.permute(1,0,2) 
+        # x[indices]= get_back
+
+        indices= torch.where(text[:,1]==49406)
+
+        mul= torch.full(x.shape, 1).to(dtype=x.dtype, device=x.device)
+        mul[indices]=0
+
+        ad= torch.full(x.shape, 0).to(dtype=x.dtype, device=x.device)
+
+        selected_samples = x[indices]
+        permuted = selected_samples.permute(1,0,2)
+        coopctx_ = self.coopctx.unsqueeze(1)
+        coopctx_ = coopctx_.repeat(1, len(indices), 1)
+        permuted[1:9] = coopctx_
+        get_back = permuted.permute(1,0,2)
+
+        ad[indices]=get_back
+
+        x= torch.add(torch.mul(x, mul), ad)
 
         x = x + self.positional_embedding.type(self.dtype)
         x = x.permute(1, 0, 2)  # NLD -> LND

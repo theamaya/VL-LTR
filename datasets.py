@@ -33,7 +33,9 @@ def build_dataset(split, args):
         desc_path=args.desc_path,
         context_length=args.context_length,
         pipeline=transform,
-        select=args.select
+        select=args.select,
+        include_wiki= args.include_wiki, 
+        prompts= args.prompts,
     )
     nb_classes = dataset.nb_classes
 
