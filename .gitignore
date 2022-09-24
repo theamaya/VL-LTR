@@ -5,7 +5,6 @@
 **/__pycache__/**
 cached/*
 cached_shit/*
-checkpoints/*
 data/*
 pretrained/*
 downloaded_checkpoints/*
@@ -21,6 +20,6 @@ slurm_err_multig/*
 slurm_err_multin/*
 .vscode/*
 wandb/*
-checkpoints/*
 notebooks/*
 anss_distributions/*
+checkpoints/*

@@ -1,20 +1,22 @@
 #!/bin/bash
 #
 #SBATCH --exclude=p3-r52-a.g42cloud.net
+#SBATCH --exclude=p4-r68-a.g42cloud.net
+#SBATCH --exclude=p4-r67-b.g42cloud.net
 #SBATCH --job-name=VL-LTR
 #SBATCH --output=./slurm_out_multig/%J.out
 #SBATCH --partition=multigpu
 #SBATCH --account=mbzuai
 #SBATCH --time=6-00:00:00
 #SBATCH --ntasks=1
-#SBATCH --gpus=12
+#SBATCH --gpus=8
 #SBATCH --cpus-per-task=64
 
 # #echo "Module = $(module avail)"
 
 echo "Python Interpreter = $(which python)"
 
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8,9,10,11
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 #,8,9,10,11,12,13,14,15
 
 NCCL_LL_THRESHOLD=0
 

@@ -3,9 +3,9 @@
 #SBATCH --exclude=p3-r52-a.g42cloud.net
 #SBATCH --job-name=VL-LTR
 #SBATCH --output=./slurm_out/%J.out
-#SBATCH --partition=multigpu
+#SBATCH --partition=default-short
 #SBATCH --account=mbzuai
-#SBATCH --time=6-00:00:00
+#SBATCH --time=01:00:00
 #SBATCH --ntasks=1
 #SBATCH --gpus=1
 #SBATCH --cpus-per-task=64
