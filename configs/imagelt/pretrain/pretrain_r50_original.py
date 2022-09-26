@@ -18,7 +18,7 @@ cfg = dict(
     min_lr=0.,
 
     epochs=50,
-    batch_size=256,
+    batch_size=8,
 
     repeated_aug=False,
     mixup=0.,
