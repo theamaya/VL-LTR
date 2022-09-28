@@ -25,6 +25,7 @@ anss_distributions/*
 checkpoints/*
 eval.sh
 main.py
-main_local.py
 mcloader/preprocess.py
 models/pretrain.py
+configs/*
+

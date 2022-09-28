@@ -36,16 +36,21 @@ class LabelSmoothingCrossEntropy(nn.Module):
         assert smoothing < 1.0
         self.smoothing = smoothing
         self.confidence = 1. - smoothing
+        self.weighting = True
 
-    def forward(self, x: torch.Tensor, target: torch.Tensor):
+    def forward(self, x: torch.Tensor, target: torch.Tensor, weighting: torch.Tensor):  #
         logprobs = F.log_softmax(x, dim=-1)
         smooth_loss = -logprobs.mean(dim=-1)
+
         if target.dim() == 1:
             nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
             nll_loss = nll_loss.squeeze(1)
         else:
             assert target.dim() == 2
-            nll_loss = -torch.sum(target * logprobs, dim=-1)
+            nll_loss = -torch.sum(target * logprobs, dim=-1)  ##why sum here? why not mean? (its done later)
+
+        if self.weighting:
+            nll_loss= nll_loss*weighting
         loss = self.confidence * nll_loss + self.smoothing * smooth_loss
         return loss.mean()
 
@@ -82,7 +87,7 @@ class PretrainSentLoss(torch.nn.Module):
             self.fp32 = args.fp32_resume
             self.set_training_mode=set_training_mode
 
-    def forward(self, inputs, outputs, labels: torch.Tensor):
+    def forward(self, inputs, outputs, labels: torch.Tensor, weighting: torch.Tensor):
         if isinstance(outputs, torch.Tensor):
             loss = self.base_criterion(outputs, labels)
             return loss
@@ -98,8 +103,8 @@ class PretrainSentLoss(torch.nn.Module):
             distill_loss = 0.
         if self.loss_type in ["softCE", "smoothCE"]:
             labels = labels / torch.sum(labels, dim=1, keepdim=True)
-        loss1 = self.base_criterion(outputs1, labels)
-        loss2 = self.base_criterion(outputs2, labels)
+        loss1 = self.base_criterion(outputs1, labels, weighting)
+        loss2 = self.base_criterion(outputs2, labels, weighting)
         base_loss = (loss1 + loss2) / 2.0
         loss = (1 - self.alpha) * base_loss + self.alpha * distill_loss
         if self.beta > 0:
@@ -135,7 +140,7 @@ class DistillationLoss(torch.nn.Module):
         self.alpha = alpha
         self.tau = tau
 
-    def forward(self, inputs, outputs, labels):
+    def forward(self, inputs, outputs, labels, weighting):
         """
         Args:
             inputs: The original inputs that are feed to the teacher model

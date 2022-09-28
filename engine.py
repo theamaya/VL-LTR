@@ -25,11 +25,19 @@ import numpy as np
 from models.layers import GatherLayer
 import torch.nn.functional as F
 
+#load a list of class frequencies here
+freq_list = torch.load('/home/amaya/repos/VL-LTR/data/imagenet/imagenet_frequencies.pt')
 
 def labels2idxs(labels: torch.Tensor):
     targets = torch.stack(
         [labels[i] == labels for i in range(labels.shape[0])])
     return targets
+
+def labels2weights(labels: torch.Tensor):
+    #complete this
+    #for the overall dataset
+    weighting = torch.reciprocal(freq_list[labels]).cuda()
+    return weighting
 
 
 def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
@@ -61,8 +69,11 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
 
             if dist.is_initialized():
                 targets = torch.cat(GatherLayer.apply(targets.contiguous()), 0)
+            weighting = labels2weights(targets)
             targets = labels2idxs(targets)
+
             targets = targets.type_as(samples).to(device, non_blocking=True)
+            weighting = weighting.to(device, non_blocking=True)
 
             if mixup_fn is not None:
                 targets_o = targets
@@ -94,7 +105,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
                 }
 
             elif pretrain_cvlp:
-                loss, distill_loss = criterion(samples, outputs, targets)
+                loss, distill_loss = criterion(samples, outputs, targets, weighting)
                 metric_logger.update(distill_loss=distill_loss)
 
                 log_stats={
