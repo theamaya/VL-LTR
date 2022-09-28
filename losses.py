@@ -27,7 +27,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
     NLL loss with label smoothing.
     """
 
-    def __init__(self, smoothing=0.1):
+    def __init__(self, smoothing=0.1, weighting= False):
         """
         Constructor for the LabelSmoothing module.
         :param smoothing: label smoothing factor
@@ -36,9 +36,9 @@ class LabelSmoothingCrossEntropy(nn.Module):
         assert smoothing < 1.0
         self.smoothing = smoothing
         self.confidence = 1. - smoothing
-        self.weighting = True
+        self.weighting = weighting
 
-    def forward(self, x: torch.Tensor, target: torch.Tensor, weighting: torch.Tensor):  #
+    def forward(self, x: torch.Tensor, target: torch.Tensor, weightings: torch.Tensor):  #
         logprobs = F.log_softmax(x, dim=-1)
         smooth_loss = -logprobs.mean(dim=-1)
 
@@ -50,7 +50,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
             nll_loss = -torch.sum(target * logprobs, dim=-1)  ##why sum here? why not mean? (its done later)
 
         if self.weighting:
-            nll_loss= nll_loss*weighting
+            nll_loss= nll_loss*weightings
         loss = self.confidence * nll_loss + self.smoothing * smooth_loss
         return loss.mean()
 
