@@ -118,7 +118,10 @@ def get_args_parser():
     parser.add_argument('--aa', type=str, default='rand-m9-mstd0.5-inc1', metavar='NAME',
                         help='Use AutoAugment policy. "v0" or "original". " + \
                              "(default: rand-m9-mstd0.5-inc1)'),
+    parser.add_argument('--wandbmode', type=str, default="disabled")
     parser.add_argument('--smoothing', type=float, default=0.1, help='Label smoothing (default: 0.1)')
+    parser.add_argument('--weighting', type=bool, default=False, help='Loss balancing (default: False)')
+    parser.add_argument('--targetted-distillation-cvlp', type=bool, default=False, help='enabling targetted distillation')
     parser.add_argument('--train-interpolation', type=str, default='bicubic',
                         help='Training interpolation (random, bilinear, bicubic default: "bicubic")')
 
@@ -263,7 +266,7 @@ def main(args):
 
     if utils.is_main_process():
         ##############
-        wandb.init(project="Long-Tail visual recognition", entity="theamaya", config={}, name= args.run)
+        wandb.init(project="Long-Tail visual recognition", entity="theamaya", config={}, name= args.run, mode=args.wandbmode)
         wandb.config.update(args)
         ###################
 
@@ -380,14 +383,14 @@ def main(args):
     loss_scaler = NativeScaler()
     lr_scheduler, _ = create_scheduler(args, optimizer)
 
-    criterion = LabelSmoothingCrossEntropy()
+    criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing, weighting=args.weighting)
     assert args.loss_type in ["softCE", "smoothCE", "BCE", "CE"]
     if args.mixup > 0. or args.loss_type == "softCE":
         # smoothing is handled with mixup label transform
         criterion = SoftTargetCrossEntropy()
     elif args.smoothing:
         assert args.loss_type == "smoothCE"
-        criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
+        criterion = LabelSmoothingCrossEntropy(smoothing=args.smoothing, weighting=args.weighting)
     elif args.loss_type == "BCE":
         criterion = torch.nn.BCEWithLogitsLoss()
     else:
@@ -399,7 +402,7 @@ def main(args):
         criterion = PretrainSentLoss(
             criterion, loss_type=args.loss_type, args=args,
             alpha=args.distillation_alpha, beta=args.distillation_beta,
-            distill_type=args.distillation_type, tau=args.distillation_tau,
+            distill_type=args.distillation_type, tau=args.distillation_tau, targetted_distillation= args.targetted_distillation_cvlp,
             set_training_mode=args.distillation_training_mode
         )
     else:
