@@ -26,7 +26,7 @@ from models.layers import GatherLayer
 import torch.nn.functional as F
 
 #load a list of class frequencies here
-freq_list = torch.load('/home/amaya/repos/VL-LTR/data/imagenet/imagenet_frequencies.pt')
+freq_list = torch.load('data/imagenet/imagenet_frequencies.pt')
 
 def labels2idxs(labels: torch.Tensor):
     targets = torch.stack(
@@ -61,6 +61,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
         samples = samples.to(device, non_blocking=True)
         targets = targets.to(device, non_blocking=True)
+        weighting = torch.zeros(10)
 
         if pretrain_cvlp:
             idxs = [np.random.randint(sent_idxs[t]) for t in targets]
@@ -91,8 +92,8 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
         with torch.cuda.amp.autocast(enabled=not fp32):
             outputs = model(samples)
             if two_branch:
-                loss0 = criterion(samples, outputs[0], targets)
-                loss1 = criterion(samples, outputs[1], targets)
+                loss0 = criterion(samples, outputs[0], targets, weighting)
+                loss1 = criterion(samples, outputs[1], targets, weighting)
                 loss = loss0 + loss1
                 metric_logger.update(loss0=loss0)
                 metric_logger.update(loss1=loss1)
@@ -114,7 +115,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
                 }
 
             else:
-                loss = criterion(samples, outputs, targets)
+                loss = criterion(samples, outputs, targets, weighting)
 
                 log_stats={
                     "loss": loss
@@ -173,14 +174,15 @@ def evaluate(data_loader, model, device, args=None, tokens=None):
     for images, target in metric_logger.log_every(data_loader, 10, header):
         images = images.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
+        weighting = torch.zeros(10)
 
         # compute output
         with torch.cuda.amp.autocast():
             output = model((images, texts))
             if two_branch:
                 batch_size = images.shape[0]
-                loss0 = criterion(output[0], target)
-                loss1 = criterion(output[1], target)
+                loss0 = criterion(output[0], target, weighting)
+                loss1 = criterion(output[1], target, weighting)
                 acc0_1, acc0_5 = accuracy(output[0], target, topk=(1, 5))
                 acc1_1, acc1_5 = accuracy(output[1], target, topk=(1, 5))
 
@@ -191,7 +193,7 @@ def evaluate(data_loader, model, device, args=None, tokens=None):
                 metric_logger.meters['acc1_1'].update(acc1_1.item(), n=batch_size)
                 metric_logger.meters['acc1_5'].update(acc1_5.item(), n=batch_size)
             else:
-                loss = criterion(output, target)
+                loss = criterion(output, target, weighting)
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 batch_size = images.shape[0]
                 metric_logger.update(loss=loss.item())
@@ -250,6 +252,7 @@ def evaluate_LT(data_loader, model, device, args=None, tokens=None, labels=None,
     for images, target in metric_logger.log_every(data_loader, 10, header):
         images = images.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
+        weighting = torch.zeros(10)
 
         inputs = (images, texts) if texts is not None else images
         # compute output
@@ -258,8 +261,8 @@ def evaluate_LT(data_loader, model, device, args=None, tokens=None, labels=None,
 
             if two_branch:
                 batch_size = images.shape[0]
-                loss0 = criterion(output[0], target)
-                loss1 = criterion(output[1], target)
+                loss0 = criterion(output[0], target, weighting)
+                loss1 = criterion(output[1], target, weighting)
                 loss = loss0 + loss1
                 acc0_1, acc0_5 = accuracy(output[0], target, topk=(1, 5))
                 acc1_1, acc1_5 = accuracy(output[1], target, topk=(1, 5))
@@ -284,7 +287,7 @@ def evaluate_LT(data_loader, model, device, args=None, tokens=None, labels=None,
                     metric_logger.meters[stat_name].update(shot_cnt_stats[stat_name][-1],
                                                            n=shot_cnt_stats[stat_name][-2])
             else:
-                loss = criterion(output, target)
+                loss = criterion(output, target, weighting)
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 batch_size = images.shape[0]
                 metric_logger.update(loss=loss.item())
@@ -335,20 +338,21 @@ def calc_class_acc(data_loader, model, device, args=None, tokens=None, prefix='v
     for images, target in metric_logger.log_every(data_loader, 10, header):
         images = images.to(device, non_blocking=True)
         target = target.to(device, non_blocking=True)
+        weighting = torch.zeros(10)
 
         inputs = (images, texts) if texts is not None else images
         # compute output
         with torch.cuda.amp.autocast():
             output = model(inputs)
             if two_branch:
-                loss0 = criterion(output[0], target)
-                loss1 = criterion(output[1], target)
+                loss0 = criterion(output[0], target, weighting)
+                loss1 = criterion(output[1], target, weighting)
                 loss = loss0 + loss1
                 alpha = 0.7 if 'INAT' in args.data_set else 0.2
                 acc1, acc5 = accuracy(output[0].softmax(1) * alpha + output[1].softmax(1) * (1-alpha), target, topk=(1, 5))
                 output = output[0] + output[1]
             else:
-                loss = criterion(output, target)
+                loss = criterion(output, target, weighting)
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
         batch_size = images.shape[0]
         metric_logger.update(loss=loss.item())

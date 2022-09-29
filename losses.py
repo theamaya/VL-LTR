@@ -12,6 +12,12 @@ def cross_entropy(outputs, teacher_outputs):
     distill_loss = -torch.sum(soft_targets * logprobs, dim=-1)
     return distill_loss.mean()
 
+def targetted_cross_entropy_for_distillation(outputs, teacher_outputs, targets):
+    logprobs = F.log_softmax(outputs, dim=-1)
+    soft_targets = F.softmax(teacher_outputs, dim=-1)
+    distill_loss = -torch.sum(soft_targets * logprobs* targets, dim=-1)
+    return distill_loss.mean()
+
 
 def kl_div(outputs1, outputs2, T=1.):
     return F.kl_div(
@@ -57,7 +63,7 @@ class LabelSmoothingCrossEntropy(nn.Module):
 
 class PretrainSentLoss(torch.nn.Module):
     def __init__(self, base_criterion: torch.nn.Module, loss_type: str, args=None, 
-        distill_type='none', alpha=0., beta=0., tau=0., set_training_mode=False):
+        distill_type='none', alpha=0., beta=0., tau=0., targetted_distillation= False, set_training_mode=False):
         super().__init__()
         self.base_criterion = base_criterion
         self.loss_type = loss_type
@@ -86,6 +92,7 @@ class PretrainSentLoss(torch.nn.Module):
             self.teacher_model.requires_grad_(False)
             self.fp32 = args.fp32_resume
             self.set_training_mode=set_training_mode
+            self.targetted_distillation = targetted_distillation
 
     def forward(self, inputs, outputs, labels: torch.Tensor, weighting: torch.Tensor):
         if isinstance(outputs, torch.Tensor):
@@ -117,8 +124,12 @@ class PretrainSentLoss(torch.nn.Module):
                 distill_loss = (distill_loss1 + distill_loss2) / 2.0
             else:
                 assert self.distill_type == "logits"
-                distill_loss1 = cross_entropy(outputs1, teacher_outputs1)
-                distill_loss2 = cross_entropy(outputs2, teacher_outputs2)
+                if self.targetted_distillation:
+                    distill_loss1 = targetted_cross_entropy_for_distillation(outputs1, teacher_outputs1, labels)
+                    distill_loss2 = targetted_cross_entropy_for_distillation(outputs2, teacher_outputs2, labels)
+                else:
+                    distill_loss1 = cross_entropy(outputs1, teacher_outputs1)
+                    distill_loss2 = cross_entropy(outputs2, teacher_outputs2)
                 distill_loss = (distill_loss1 + distill_loss2) / 2.0
             loss = (1 - self.beta) * loss + self.beta * distill_loss
         return loss, distill_loss
@@ -161,7 +172,7 @@ class DistillationLoss(torch.nn.Module):
             raise ValueError("When knowledge distillation is enabled, the model is "
                              "expected to return a Tuple[Tensor, Tensor] with the output of the "
                              "class_token and the dist_token")
-        # don't backprop throught the teacher
+        # don't backprop through the teacher
         with torch.no_grad():
             teacher_outputs = self.teacher_model(inputs)
 
