@@ -18,7 +18,7 @@ from timm.utils import NativeScaler
 from datasets import build_dataset
 from losses import DistillationLoss, PretrainSentLoss, LabelSmoothingCrossEntropy
 from samplers import RASampler, WeightedDistributedSampler
-from engine import calc_class_acc, evaluate_LT, evaluate_pretrain, train_one_epoch, select_sent
+from engine import calc_class_acc, evaluate_LT, evaluate_pretrain, train_one_epoch, select_sent, evaluate_bias
 from optim_factory import create_optimizer
 from mixup import Mixup
 
@@ -54,6 +54,8 @@ def get_args_parser():
     parser.add_argument('--loss-type', default='CE', type=str, help='loss type')
     parser.add_argument('--pretrain-cvlp', action='store_true', help='sentence-level pretraining')
     parser.set_defaults(pretrain_cvlp=False)
+    parser.add_argument('--evaluate-bias', action='store_true', help='evaluate bias of the models using noise tensors')
+    parser.set_defaults(evaluate_bias=False)
     parser.add_argument('--pretrain-cvlp-path', default='', type=str,
                         help='path of sentence-level pretraining task ckpt')
 
@@ -462,6 +464,13 @@ def main(args):
                 with (output_dir / ("%s_%s_class.txt" % (args.data_set, prefix))).open("a") as f:
                     f.write(json.dumps(class_test_stats) + "\n")
             return
+
+        #################################
+        if args.evaluate_bias:
+            test_stats = evaluate_pretrain(data_loader_test, model, device, args=args,
+                                       load_cache=False, labels=dataset_train.targets, prefix='test')
+        #################################
+
         if args.select:
             eval_func = partial(select_sent, args=args)
         elif args.eval_pretrain:
@@ -533,7 +542,11 @@ def main(args):
 
     if args.test:
         if args.pretrain_cvlp:
-            test_stats = evaluate_pretrain(data_loader_test, model, device, args=args, 
+            if args.evaluate_bias:
+                test_stats = evaluate_bias(data_loader_test, model, device, args=args,
+                                    load_cache=False, labels=dataset_train.targets, prefix='test')
+            else:
+                test_stats = evaluate_pretrain(data_loader_test, model, device, args=args,
                                     load_cache=False, labels=dataset_train.targets, prefix='test')
         else:
             test_stats = evaluate_LT(data_loader_test, model, device, args=args,

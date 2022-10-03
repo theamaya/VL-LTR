@@ -27,6 +27,7 @@ import torch.nn.functional as F
 
 #load a list of class frequencies here
 freq_list = torch.load('data/imagenet/imagenet_frequencies.pt')
+prob_list = torch.load('data/imagenet/imagenet_probabilities.pt')
 
 def labels2idxs(labels: torch.Tensor):
     targets = torch.stack(
@@ -34,9 +35,9 @@ def labels2idxs(labels: torch.Tensor):
     return targets
 
 def labels2weights(labels: torch.Tensor):
-    #complete this
     #for the overall dataset
-    weighting = torch.reciprocal(freq_list[labels]).cuda()
+    # weighting = torch.reciprocal(freq_list[labels])
+    weighting = prob_list[labels]
     return weighting
 
 
@@ -616,3 +617,158 @@ def select_sent(data_loader: DataLoader, model, device, args=None, load_cache=Tr
         print('Selected anchor embeddings are saved in ', txt_ce_path)
     exit(0)
 
+
+
+
+def generate_noise_image(batch_size):
+    images=[]
+    for i in range(batch_size):
+        a= torch.normal(0.4815, 0.2686, size=(224, 224))
+        b= torch.normal(0.4578, 0.2613, size=(224, 224))
+        c= torch.normal(0.4082, 0.2758, size=(224, 224))
+        image= torch.stack((a,b,c))
+        images.append(image)
+    return(torch.stack(images))
+
+
+@torch.no_grad()
+def evaluate_bias(data_loader: DataLoader, model, device, labels=None, args=None, load_cache=True, topk=(5, 1),
+                  prefix='val'):
+    # switch to evaluation mode
+    start_time = time.time()
+    model.eval()
+    if args.distributed: model = model.module
+
+    text_tokens = getattr(data_loader.dataset, 'text_tokens', None)
+    assert text_tokens is not None and isinstance(text_tokens, List), \
+        "text_tokens is None, This function only supports pretraining phase"
+    text_tokens = torch.cat(text_tokens)
+    sent_idxs = getattr(data_loader.dataset, 'end_idxs', None)
+    assert sent_idxs is not None and isinstance(sent_idxs, List)
+    targets = torch.tensor(data_loader.dataset.targets).to(device)
+    text_targets = torch.empty((sum(sent_idxs),), dtype=torch.long).to(device)  # [Nt,]
+    left = 0
+    for i in range(len(sent_idxs)):
+        text_targets[left: left + sent_idxs[i]] = i
+        left += sent_idxs[i]
+
+    # step 1. obtain all embeddings of image and text
+    image_embeddings, text_embeddings = None, None
+    if args.resume:
+        cache_dir = osp.dirname(args.resume)
+        img_embed_path = osp.join(cache_dir, "%s_img_embed.npy" % prefix)
+        txt_embed_path = osp.join(cache_dir, "txt_embed.npy")
+    if load_cache and osp.exists(img_embed_path):
+        print("using cached image embeddings")
+        image_embeddings = torch.from_numpy(np.load(img_embed_path)).to(device, non_blocking=True)
+    if load_cache and osp.exists(txt_embed_path):
+        print("using cached text embeddings")
+        text_embeddings = torch.from_numpy(np.load(txt_embed_path)).to(device, non_blocking=True)
+
+    # image
+    if image_embeddings is None:
+        print("No cached image embeddings. Calculating from scratch")
+        image_embeddings = []
+        iter = tqdm(data_loader, desc="image embeddings") if load_cache else data_loader
+        for images, target in iter:
+            batch_size = images.shape[0]
+            images = generate_noise_image(batch_size)
+            images = images.to(device, non_blocking=True)
+            # compute output
+            with torch.cuda.amp.autocast():
+                image_features = model.encode_image(images)
+            image_embeddings.append(image_features.detach())
+        image_embeddings = torch.cat(image_embeddings)
+        # if utils.is_main_process():
+        #     np.save(img_embed_path, image_embeddings.cpu().numpy())
+        #     print("Image embeddings saved")
+    # print("image_embeddings.shape: ", image_embeddings.shape) # [Ni, 1024]
+
+    # text
+    if text_embeddings is None:
+        print("No cached text embeddings. Calculating from scratch")
+        text_embeddings = []
+        tokens_loader_val = DataLoader(
+            text_tokens, sampler=SequentialSampler(text_tokens),
+            batch_size=int(8 * args.batch_size),
+            num_workers=args.num_workers, pin_memory=args.pin_mem,
+            drop_last=False
+        )
+        iter = tqdm(tokens_loader_val, desc="text embeddings") if load_cache else tokens_loader_val
+        for batch_tokens in iter:
+            batch_tokens = batch_tokens.to(device, non_blocking=True)
+            # compute output
+            with torch.cuda.amp.autocast():
+                text_features = model.encode_text(batch_tokens)
+            text_embeddings.append(text_features.detach())
+        text_embeddings = torch.cat(text_embeddings)
+        if utils.is_main_process(): np.save(txt_embed_path, text_embeddings.cpu().numpy())
+    # print("text_embeddings.shape: ", text_embeddings.shape) # [Nt, 1024]
+    # if args.ensemble:
+    #     print("using ensemble")
+    #     text_embeddings /= text_embeddings.norm(dim=-1, keepdim=True)
+    #     n_text_embeddings = []
+    #     left = 0
+    #     for i in range(len(sent_idxs)):
+    #         n_text_embeddings.append(torch.mean(text_embeddings[left : left + sent_idxs[i], :], dim=0))
+    #         left += sent_idxs[i]
+    #     text_embeddings = torch.stack(n_text_embeddings)
+    #     text_targets = torch.arange(len(sent_idxs)).to(device)
+
+    # step 2. compute cosine similarity for image and text
+    text_embeddings /= text_embeddings.norm(dim=-1, keepdim=True)
+    image_embeddings /= image_embeddings.norm(dim=-1, keepdim=True)
+
+    # image
+    def get_pred(embeddings_A, embeddings_B, topk=1, desc=''):
+        embeddings_loader = DataLoader(
+            embeddings_A.cpu(), sampler=SequentialSampler(embeddings_A),
+            batch_size=int(8 * args.batch_size),
+            num_workers=args.num_workers, pin_memory=args.pin_mem,
+            drop_last=False
+        )
+        iter = tqdm(embeddings_loader, desc=desc) if load_cache else embeddings_loader
+        preds = []
+        for batch_embeddings in iter:
+            batch_embeddings = batch_embeddings.to(device, non_blocking=True)
+            batch_logits = batch_embeddings @ embeddings_B.t()
+            _, batch_preds = batch_logits.topk(topk, dim=1, largest=True, sorted=True)  # [BN, topk]
+            preds.append(batch_preds)
+        preds = torch.cat(preds)
+        return preds
+
+    pred_image = get_pred(image_embeddings, text_embeddings,
+                          topk=max(topk), desc="preds of image embeddings")  # [Ni, topk]
+    print("pred_image.shape:", pred_image.shape)
+
+    # print("logits_per_image.shape", logits_per_image.shape)
+
+    pred_label = text_targets[pred_image]  # [Ni, topk]
+    return (pred_label)
+
+    # image_acc1 = torch.sum(pred_label[:, 0] == targets) * 100.0 / pred_image.shape[0]
+    # # shot acc
+    # img_shot_acc, knn_shot_acc = {}, {}
+    # if labels is not None:
+    #     training_labels = np.array(labels).astype(int)
+    #     train_class_count = [len(training_labels[training_labels == l]) for l in range(args.nb_classes)]
+    #     img_shot_acc = shot_acc(pred_label[:, 0], targets, train_class_count=train_class_count)
+    #     img_shot_acc = {k: v[-1] for k, v in img_shot_acc.items()}
+    # # knn
+    # vote_result = torch.tensor([Counter(label.tolist()).most_common(1)[0][0] for label in pred_label]).to(device)
+    # if labels is not None:
+    #     knn_shot_acc = shot_acc(vote_result, targets, train_class_count=train_class_count)
+    #     knn_shot_acc = {f"knn_{k}": v[-1] for k, v in knn_shot_acc.items()}
+    # knn_acc = torch.sum(vote_result == targets) * 100.0 / pred_image.shape[0]
+    # pred_text = get_pred(text_embeddings, image_embeddings, topk=1, desc="preds of text embeddings")
+    # pred_text = pred_text.squeeze() # [Nt, ]
+    # print("pred_text.shape:", pred_text.shape)
+    # pred_text = targets[pred_text]
+    # text_acc1 = torch.sum(pred_text == text_targets) * 100.0 / pred_text.shape[0]
+    #
+    # torch.cuda.synchronize()
+    # total_time = str(datetime.timedelta(seconds=int(time.time() - start_time)))
+    # print("* image_Acc@1: {:.3f}% text_Acc@1 {:.3f}% knn_Acc@5 {:.3f}% Total time: {}".format(
+    #     image_acc1, text_acc1, knn_acc, total_time))
+    # return {"image_acc1": image_acc1.item(), "text_acc1": text_acc1.item(),
+    #         f"knn_{max(topk)}": knn_acc.item(), **img_shot_acc, **knn_shot_acc}

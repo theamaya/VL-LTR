@@ -45,8 +45,14 @@ class LabelSmoothingCrossEntropy(nn.Module):
         self.weighting = weighting
 
     def forward(self, x: torch.Tensor, target: torch.Tensor, weightings: torch.Tensor):  #
-        logprobs = F.log_softmax(x, dim=-1)
-        smooth_loss = -logprobs.mean(dim=-1)
+        if self.weighting:
+            x= torch.exp(x)*weightings
+            logprobs= torch.log(x/torch.sum(x, dim=-1))
+            smooth_loss = -logprobs.mean(dim=-1)
+
+        else:
+            logprobs = F.log_softmax(x, dim=-1)
+            smooth_loss = -logprobs.mean(dim=-1)
 
         if target.dim() == 1:
             nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
@@ -55,9 +61,22 @@ class LabelSmoothingCrossEntropy(nn.Module):
             assert target.dim() == 2
             nll_loss = -torch.sum(target * logprobs, dim=-1)  ##why sum here? why not mean? (its done later)
 
-        if self.weighting:
-            nll_loss= nll_loss*weightings
         loss = self.confidence * nll_loss + self.smoothing * smooth_loss
+
+        # logprobs = F.log_softmax(x, dim=-1)
+        # smooth_loss = -logprobs.mean(dim=-1)
+        #
+        # if target.dim() == 1:
+        #     nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
+        #     nll_loss = nll_loss.squeeze(1)
+        # else:
+        #     assert target.dim() == 2
+        #     nll_loss = -torch.sum(target * logprobs, dim=-1)  ##why sum here? why not mean? (its done later)
+        #
+        # if self.weighting:
+        #     nll_loss= nll_loss*weightings
+        # loss = self.confidence * nll_loss + self.smoothing * smooth_loss
+
         return loss.mean()
 
 
