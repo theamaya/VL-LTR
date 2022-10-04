@@ -12,10 +12,14 @@ def cross_entropy(outputs, teacher_outputs):
     distill_loss = -torch.sum(soft_targets * logprobs, dim=-1)
     return distill_loss.mean()
 
-def targetted_cross_entropy_for_distillation(outputs, teacher_outputs, targets):
-    logprobs = F.log_softmax(outputs, dim=-1)
-    soft_targets = F.softmax(teacher_outputs, dim=-1)
-    distill_loss = -torch.sum(soft_targets * logprobs* targets, dim=-1)
+def lgadjusted_cross_entropy_for_distillation(outputs, teacher_outputs, weightings):
+    y = torch.exp(outputs) * weightings
+    logprobs = torch.log(y / torch.sum(y, dim=-1))
+
+    x = torch.exp(teacher_outputs) * weightings
+    soft_targets = x / torch.sum(x, dim=-1)
+
+    distill_loss = -torch.sum(soft_targets * logprobs, dim=-1)
     return distill_loss.mean()
 
 
@@ -46,8 +50,8 @@ class LabelSmoothingCrossEntropy(nn.Module):
 
     def forward(self, x: torch.Tensor, target: torch.Tensor, weightings: torch.Tensor):  #
         if self.weighting:
-            x= torch.exp(x)*weightings
-            logprobs= torch.log(x/torch.sum(x, dim=-1))
+            y= torch.exp(x)*weightings
+            logprobs= torch.log(y/torch.sum(y, dim=-1))
             smooth_loss = -logprobs.mean(dim=-1)
 
         else:
@@ -144,8 +148,8 @@ class PretrainSentLoss(torch.nn.Module):
             else:
                 assert self.distill_type == "logits"
                 if self.targetted_distillation:
-                    distill_loss1 = targetted_cross_entropy_for_distillation(outputs1, teacher_outputs1, labels)
-                    distill_loss2 = targetted_cross_entropy_for_distillation(outputs2, teacher_outputs2, labels)
+                    distill_loss1 = lgadjusted_cross_entropy_for_distillation(outputs1, teacher_outputs1, weighting)
+                    distill_loss2 = lgadjusted_cross_entropy_for_distillation(outputs2, teacher_outputs2, weighting)
                 else:
                     distill_loss1 = cross_entropy(outputs1, teacher_outputs1)
                     distill_loss2 = cross_entropy(outputs2, teacher_outputs2)
