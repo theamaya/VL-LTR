@@ -14,7 +14,7 @@ def cross_entropy(outputs, teacher_outputs):
 
 def lgadjusted_cross_entropy_for_distillation(outputs, teacher_outputs, weightings):
     y = torch.exp(outputs) * weightings
-    logprobs = torch.log(y / torch.sum(y, dim=-1))
+    logprobs = -torch.log(y / torch.sum(y, dim=-1))
 
     x = torch.exp(teacher_outputs) * weightings
     soft_targets = x / torch.sum(x, dim=-1)
