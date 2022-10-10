@@ -93,12 +93,8 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
         with torch.cuda.amp.autocast(enabled=not fp32):
             outputs = model(samples)
             if two_branch:
-                if criterion == torch.nn.CrossEntropyLoss():
-                    loss0 = criterion(samples, outputs[0], targets)
-                    loss1 = criterion(samples, outputs[1], targets)
-                else:
-                    loss0 = criterion(samples, outputs[0], targets, weighting)
-                    loss1 = criterion(samples, outputs[1], targets, weighting)
+                loss0 = criterion(samples, outputs[0], targets, weighting)
+                loss1 = criterion(samples, outputs[1], targets, weighting)
                 loss = loss0 + loss1
                 metric_logger.update(loss0=loss0)
                 metric_logger.update(loss1=loss1)
@@ -120,10 +116,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
                 }
 
             else:
-                if criterion == torch.nn.CrossEntropyLoss():
-                    loss = criterion(samples, outputs, targets)
-                else:
-                    loss = criterion(samples, outputs, targets, weighting)
+                loss = criterion(samples, outputs, targets, weighting)
 
                 log_stats={
                     "loss": loss

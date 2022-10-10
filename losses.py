@@ -5,6 +5,17 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from timm.models import create_model
+from timm.loss.cross_entropy import SoftTargetCrossEntropy
+
+class SoftTargetCrossEntropy_lgadjusted(nn.Module):
+    def __init__(self):
+        super(SoftTargetCrossEntropy_lgadjusted, self).__init__()
+    def forward(self, x, target, prob_list):
+        y = torch.exp(x.double()) * prob_list
+        logprobs = torch.log(y / torch.sum(y, dim=-1).unsqueeze(1))
+        # loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
+        loss = torch.sum(-target * logprobs, dim=-1)
+        return loss.mean()
 
 def cross_entropy(outputs, teacher_outputs):
     logprobs = F.log_softmax(outputs, dim=-1)
@@ -165,7 +176,7 @@ class DistillationLoss(torch.nn.Module):
     """
 
     def __init__(self, base_criterion: torch.nn.Module, teacher_model: torch.nn.Module,
-                 distillation_type: str, alpha: float, tau: float):
+                 distillation_type: str, alpha: float, tau: float, lgadjust: bool, args= None):
         super().__init__()
         self.base_criterion = base_criterion
         self.teacher_model = teacher_model
@@ -173,6 +184,11 @@ class DistillationLoss(torch.nn.Module):
         self.distillation_type = distillation_type
         self.alpha = alpha
         self.tau = tau
+        self.lgadjust = lgadjust
+        if self.lgadjust:
+            self.base_criterion = SoftTargetCrossEntropy_lgadjusted()
+        device = torch.device(args.device)
+        self.prob_list = torch.load('imagenet_probabilities.pt').to(device, non_blocking=True)
 
     def forward(self, inputs, outputs, labels, weighting):
         """
@@ -187,7 +203,10 @@ class DistillationLoss(torch.nn.Module):
         if not isinstance(outputs, torch.Tensor):
             # assume that the model outputs a tuple of [outputs, outputs_kd]
             outputs, outputs_kd = outputs
-        base_loss = self.base_criterion(outputs, labels)
+        if self.lgadjust:
+            base_loss = self.base_criterion(outputs, labels, self.prob_list)
+        else:
+            base_loss = self.base_criterion(outputs, labels)
         if self.distillation_type == 'none':
             return base_loss
 

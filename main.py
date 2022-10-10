@@ -16,7 +16,7 @@ from timm.scheduler import create_scheduler
 from timm.utils import NativeScaler
 
 from datasets import build_dataset
-from losses import DistillationLoss, PretrainSentLoss, LabelSmoothingCrossEntropy
+from losses import DistillationLoss, PretrainSentLoss, LabelSmoothingCrossEntropy, SoftTargetCrossEntropy_lgadjusted
 from samplers import RASampler, WeightedDistributedSampler
 from engine import calc_class_acc, evaluate_LT, evaluate_pretrain, train_one_epoch, select_sent, evaluate_bias
 from optim_factory import create_optimizer
@@ -123,6 +123,7 @@ def get_args_parser():
     parser.add_argument('--wandbmode', type=str, default="disabled")
     parser.add_argument('--smoothing', type=float, default=0.1, help='Label smoothing (default: 0.1)')
     parser.add_argument('--weighting', type=bool, default=False, help='Loss balancing (default: False)')
+    parser.add_argument('--lgadjustLGR', type=bool, default=False, help='Loss balancing for LGR(default: False)')
     parser.add_argument('--targetted-distillation-cvlp', type=bool, default=False, help='enabling targetted distillation')
     parser.add_argument('--train-interpolation', type=str, default='bicubic',
                         help='Training interpolation (random, bilinear, bicubic default: "bicubic")')
@@ -409,7 +410,7 @@ def main(args):
         )
     else:
         criterion = DistillationLoss(
-            criterion, None, 'none', 0, 0
+            criterion, None, 'none', 0, 0, args.lgadjustLGR, args
         )
     print("using loss: ", str(criterion.__class__))
 
